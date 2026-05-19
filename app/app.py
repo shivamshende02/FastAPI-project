@@ -1,4 +1,5 @@
 from fastapi import FastAPI , HTTPException
+from app.schemas import PostCreate, PostResponse
 
 app = FastAPI()
 
@@ -34,7 +35,12 @@ text_posts = {1: {"title":"New Post","content":"this is a cool test post"},
 
 @app.get("/posts")
 def get_all_posts(limit:int):
-    return list(text_posts.items())[:limit]
+    if limit<=0:
+        raise HTTPException(status_code=400, detail="limit must be greater than 0")
+    elif limit>=len(text_posts):
+        raise HTTPException(status_code=400, detail="limit must be less than or equal to the number of posts")
+    else:
+        return list(text_posts.items())[:limit]
 
 @app.get("/posts/{id}")
 def get_post(id: int):
@@ -42,3 +48,10 @@ def get_post(id: int):
         raise HTTPException(status_code=404, detail="Post not found")
     else:    
         return text_posts.get(id)
+
+@app.post("/posts")
+def create_post(post:PostCreate)-> PostResponse:
+    new_post = post.dict()    
+    text_posts[len(text_posts)+1] = new_post
+    return new_post
+
