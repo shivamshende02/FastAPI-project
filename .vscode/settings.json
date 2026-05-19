@@ -1,0 +1,6 @@
+{
+    "problems.decorations.enabled": false,
+    "accessibility.signals.lineHasError": {
+        "announcement": "off"
+    }
+}
