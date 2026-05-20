@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 import uuid
+from fastapi import Depends
 
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID

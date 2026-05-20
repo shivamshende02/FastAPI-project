@@ -9,7 +9,7 @@ import os
 import tempfile
 import uuid
 from app.users import current_active_user, fastapi_users, auth_backend
-
+from fastapi import Depends
 @asynccontextmanager
 async def lifespan(app:FastAPI):
     await create_db_and_tables()
@@ -18,26 +18,39 @@ async def lifespan(app:FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+# 1. Login/Logout
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/auth/jwt",
     tags=["auth"]
 ) 
+
+# 2. Registration (Needs BOTH schemas because it creates a user, then reads the result)
 app.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),prefix="/auth",tags=["auth"]
-    
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"]
 )
 
+# 3. Reset Password (Needs NO schemas, it just generates and sends a token string)
 app.include_router(
-    fastapi_users.get_reset_password_router(auth_backend),prefix="/auth",tags=["auth"]
-    
+    fastapi_users.get_reset_password_router(),
+    prefix="/auth",
+    tags=["auth"]
 )
+
+# 4. Verify Email (Needs ONLY UserRead, because it updates a status and returns the user profile)
 app.include_router(
-    fastapi_users.get_verify_router(UserRead,UserCreate),prefix="/auth",tags=["auth"]
-    
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"]
 )
+
+# 5. User Management (Needs Read and UPDATE, because this is where users edit their profile)
 app.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate), prefix="/users", tags=["users"]
+    fastapi_users.get_users_router(UserRead, UserUpdate), 
+    prefix="/users", 
+    tags=["users"]
 )
 
 
@@ -45,7 +58,7 @@ app.include_router(
 async def upload_file(
     file: UploadFile = File(...), 
     caption: str = Form(""),
-    user: User = Depends(current_active_user)
+    user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
     temp_file_path = None
@@ -92,8 +105,8 @@ async def upload_file(
 
 @app.get("/feed")
 async def get_feed(
-    session: AsyncSession = Depends(get_async_session)
-    user:User = Depends(current_active_user)
+    session: AsyncSession = Depends(get_async_session),
+    user:User = Depends(current_active_user),
 ):
     result = await session.excute(select(Post).order_by(Post.created_at.desc()))
     posts = [row[0] for row in result.all()]
@@ -103,11 +116,14 @@ async def get_feed(
         post_data.append(
             {
                 "id":str(post.id),
+                "user_id": str(post.user_id),
                 "caption":post.caption,
                 "url":post.url,
                 "file_type":post.file_type,
                 "file_name":post.file_name,
-                "created_at":post.created_at.isoformat()
+                "created_at":post.created_at.isoformat(),
+                "is_owner":post.user_id == user.id,
+                "email": post.user.email
                 
 
             }
@@ -117,8 +133,8 @@ async def get_feed(
 
 
 @app.delete("/delete/{post_id}")
-async def delete_post(post_id:str,session:AsyncSession = Depends(get_async_session),user:User = Depends(current_active_user))
-      try:
+async def delete_post(post_id:str,session:AsyncSession = Depends(get_async_session),user:User = Depends(current_active_user)):
+    try:
         post_uuid = uuid.UUID(post_id)
         result = await session.execute(select(Post).where(Post.id == post_uuid))
         post = result.scalars().first()
@@ -131,5 +147,5 @@ async def delete_post(post_id:str,session:AsyncSession = Depends(get_async_sessi
         await session.commit()
 
         return {"success":True,"message":"Post deleted successfylly"}
-    except Exeption as e:
+    except Exception as e:
         raise HTTPException(status_code=500,detail=str(e))
