@@ -1,8 +1,10 @@
 from pydantic import BaseModel
 
 class PostCreate(BaseModel):
-    title: str
-    content: str
+    caption:str
+    url:str
+    file_type:str
+    file_name:str
 
 class PostResponse(PostCreate):
     pass    
