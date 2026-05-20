@@ -48,7 +48,7 @@ app.include_router(
 
 # 5. User Management (Needs Read and UPDATE, because this is where users edit their profile)
 app.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate), 
+    fastapi_users.get_users_router(UserRead, UserCreate), 
     prefix="/users", 
     tags=["users"]
 )
